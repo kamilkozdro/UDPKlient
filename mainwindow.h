@@ -18,6 +18,17 @@ public:
 
 private slots:
 
+    void clickedConnectButton();
+    void clickedDisconnectButton();
+    void clickedXAxisButton();
+    void clickedYAxisButton();
+    void clickedZAxisButton();
+    void clickedLightButton();
+    void clickedGrabFrameButton();
+
+    void enableDisconnectButton();
+    void enableConnectButton();
+
 private:
     Ui::mainWindow *ui;
     UDPClient *udpClient;

@@ -1,59 +1,108 @@
 #include "udpClient.h"
 
-#define LISTEN_PORT 3032
-#define COM_PORT 3031
-#define SERVER_PORT 3030
-#define LOCAL_ADDRESS "192.168.1.2"
-#define SERVER_ADDRESS "192.168.1.2"
-
 UDPClient::UDPClient(QObject *parent) :
     QObject(parent)
 {
 }
 
-UDPClient::UDPClient(QTextBrowser *ptr, char arg[])
+UDPClient::UDPClient(QTextBrowser *ptr, quint16 ListenPort, quint16 ComPort, quint16 ServerPort)
+    :listenPort(ListenPort),comPort(ComPort),serverPort(ServerPort)
 {
-    inSocket = new QUdpSocket(this);
-    outSocket = new QUdpSocket(this);
+    logFile.setFileName("A:/log.txt");
+    logFile.open(QIODevice::Append);
+    socket = new QUdpSocket(this);
     textWindow = ptr;
     connectionStatus = false;
+    loadConfig();
 
-    if(arg = "default")
-    {
-        localAddress.setAddress(LOCAL_ADDRESS); // ZROB: wykryj adres w lokalnej sieci
-        serverAddress.setAddress(SERVER_ADDRESS);
-        listenPort = LISTEN_PORT;
-        comPort = COM_PORT;
-        serverPort = SERVER_PORT;
-    }  
-    connect(inSocket,SIGNAL(readyRead()),this,SLOT(readData()));
+    connect(socket,SIGNAL(readyRead()),this,SLOT(readData()));
     listenServer();
 }
 
 UDPClient::~UDPClient()
 {
-    if(inSocket != NULL)
+    if(socket != NULL)
     {
-        delete inSocket;
-        inSocket = NULL;
+        delete socket;
+        socket = NULL;
     }
-    if(outSocket != NULL)
+    logFile.close();
+}
+
+QHostAddress UDPClient::whatsMyIP()
+{
+    QNetworkInterface network;
+
+    for(int i=0; i<network.allAddresses().count(); i++)
     {
-        delete outSocket;
-        outSocket = NULL;
+        if(network.allAddresses().at(i).protocol() == QAbstractSocket::IPv4Protocol)
+        {
+            if(network.allAddresses().at(i).toString().contains("192.168.1"))
+                return network.allAddresses().at(i);
+        }
+    }
+    return QHostAddress::Null;
+}
+
+void UDPClient::loadConfig()
+{
+    /* ZAPIS KONFIGURACJI
+        #Port na ktorym nasluchuje serwer
+        3030
+        #Port na ktorym wystepuje komunikacja serwer - zaakceptowany klient
+        3031
+        #Port na ktorym nasluchuje klient
+        3032
+        #Adres serwera
+        192.168.1.2
+    */
+    // TYMCZASOWO DYSK A:
+    QFile confFile("A:/config.txt");
+
+    if(!confFile.open(QIODevice::ReadOnly | QIODevice::Text))  qDebug() << "Fail to read config file";
+    else
+    {
+        QByteArray buffer;
+
+        buffer = confFile.readLine();
+        buffer = confFile.readLine();
+        buffer.chop(1);
+        serverPort = buffer.toUShort(0,16);
+        //qDebug() << hex << serverPort;
+        buffer = confFile.readLine();
+        buffer = confFile.readLine();
+        buffer.chop(1);
+        comPort = buffer.toUShort(0,16);
+        //qDebug() << hex << comPort;
+        buffer = confFile.readLine();
+        buffer = confFile.readLine();
+        buffer.chop(1);
+        listenPort = buffer.toUShort(0,16);
+        //qDebug() << hex << listenPort;
+        buffer = confFile.readLine();
+        buffer = confFile.readLine();
+        buffer.chop(1);
+        if( buffer == "0")  localAddress = whatsMyIP();
+        else    localAddress.setAddress(QString(buffer));
+        //qDebug() << buffer;
+        confFile.close();
     }
 }
 
 void UDPClient::listenServer()
 {
-    if(!connectionStatus)   // jesli nie ma pozwolenia na polaczenie
+    if(!connectionStatus)   // jesli nie ma pozwolenia na polaczenie / poczatkowe
     {
-        inSocket->bind(localAddress,listenPort);
+        socket->bind(localAddress,listenPort);
+        if(socket->state() == socket->BoundState)   textWindow->append("Nasluchuje na LISTEN:"+QString::number(socket->localPort()));
+        else    textWindow->append("Nie nasluchuje");
     }
     else                    // uzyskano pozwolenie na polaczenie
     {
-        inSocket->close();
-        inSocket->bind(localAddress,comPort);
+        socket->close();
+        socket->bind(localAddress,comPort);
+        if(socket->state() == socket->BoundState)   textWindow->append("Nasluchuje na COM:"+QString::number(socket->localPort()));
+        else    textWindow->append("Nie nasluchuje na COM");
     }
 }
 
@@ -62,23 +111,47 @@ void UDPClient::writeData(char string[])
     QByteArray datagram = string;
     if(!connectionStatus)
     {
-        //outSocket->bind(serverAddress,serverPort);
-        outSocket->writeDatagram(datagram.data(),datagram.size(), serverAddress,serverPort);
+        socket->writeDatagram(datagram.data(),datagram.size(), serverAddress,serverPort);
+        socket->waitForBytesWritten();
     }
     else
     {
-        //outSocket->bind(serverAddress,comPort);
-        outSocket->writeDatagram(datagram.data(),datagram.size(),serverAddress,comPort);
+        socket->writeDatagram(datagram.data(),datagram.size(),serverAddress,comPort);
+        socket->waitForBytesWritten();
     }
 }
 
-//SLOTS
+void UDPClient::writeData(QString string)
+{
+    QByteArray datagram;
+    datagram.append(string);
+    if(!connectionStatus)
+    {
+        socket->writeDatagram(datagram.data(),datagram.size(), serverAddress,serverPort);
+        socket->waitForBytesWritten();
+    }
+    else
+    {
+        socket->writeDatagram(datagram.data(),datagram.size(),serverAddress,comPort);
+        socket->waitForBytesWritten();
+    }
+}
+
+void UDPClient::broadcast(char string[])
+{
+    QByteArray datagram = string;
+    socket->writeDatagram(datagram.data(),datagram.size(),QHostAddress::Broadcast,serverPort);
+    socket->waitForBytesWritten();
+}
+
+    // PROCEDURES - SLOTS
 
 void UDPClient::connectToServer()
 {
     if(!connectionStatus)
     {
-        writeData("query");
+        if(serverAddress.isNull())  broadcast("query");
+        else    writeData("query");
     }
 }
 
@@ -88,7 +161,8 @@ void UDPClient::disconnect()
     {
        writeData("logout");
        connectionStatus = false;
-       inSocket->close();
+       emit disconnected();
+       socket->close();
        listenServer();
     }
 }
@@ -96,43 +170,61 @@ void UDPClient::disconnect()
 void UDPClient::readData()
 {
     QByteArray datagram;
-    while (inSocket->hasPendingDatagrams())
+    while (socket->hasPendingDatagrams())
     {
-        datagram.resize(inSocket->pendingDatagramSize());
-        inSocket->readDatagram(datagram.data(),datagram.size()); //,&serverAddress
-        textWindow->append(datagram);
+        datagram.resize(socket->pendingDatagramSize());
+        socket->readDatagram(datagram.data(),datagram.size(),&serverAddress);
+        //textWindow->append(datagram);
+        logFile.write(datagram);
     }
 
     if(datagram == "Y")
     {
         connectionStatus = true;
+        emit connectionEstablished();
         textWindow->append("Prosba przyjeta");
+        listenServer();
     }
     else if(datagram == "N")    textWindow->append("Prosba odrzucona");
 }
 
-void UDPClient::clickedXAxisButton()
+void UDPClient::setXAxis(QString value)
 {
-
+    if(connectionStatus)
+    {
+        writeData(QString("X = "+value));
+    }
 }
 
-void UDPClient::clickedYAxisButton()
+void UDPClient::setYAxis(QString value)
 {
-
+    if(connectionStatus)
+    {
+        writeData(QString("Y = "+value));
+    }
 }
 
-void UDPClient::clickedZAxisButton()
+void UDPClient::setZAxis(QString value)
 {
-
+    if(connectionStatus)
+    {
+        writeData(QString("Z = "+value));
+    }
 }
 
-void UDPClient::clickedLightButton()
+void UDPClient::setLight(QString value)
 {
-
+    if(connectionStatus)
+    {
+        writeData(QString("setLight = ")+value);
+    }
 }
 
-void UDPClient::clickedGrabFrameButton()
+void UDPClient::grabFrame()
 {
-
+    if(connectionStatus)
+    {
+        writeData("grabFrame");
+    }
 }
 
