@@ -32,16 +32,14 @@ public:
 
     QHostAddress whatsMyIP();
     void loadConfig();
-    void listenServer();
+    int listenServer();
     void writeData(char string[]);
     void writeData(QString string);
     void broadcast(char string[]);
 
     void connectToServer();
     void disconnect();
-    void setXAxis(QString value);
-    void setYAxis(QString value);
-    void setZAxis(QString value);
+    void movePlatform(QString value);
     void grabFrame();
     void setLight(QString value);
 

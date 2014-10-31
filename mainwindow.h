@@ -26,9 +26,7 @@ private slots:
 
     void clickedConnectButton();
     void clickedDisconnectButton();
-    void clickedXAxisButton();
-    void clickedYAxisButton();
-    void clickedZAxisButton();
+    void clickedMovePlatformButton();
     void clickedLightButton();
     void clickedGrabFrameButton();
 

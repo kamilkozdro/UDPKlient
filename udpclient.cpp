@@ -16,7 +16,6 @@ UDPClient::UDPClient(QTextBrowser *ptr, quint16 ClientPort, quint16 ComPort, qui
     loadConfig();
 
     connect(socket,SIGNAL(readyRead()),this,SLOT(readData()));
-    listenServer();
 }
 
 UDPClient::~UDPClient()
@@ -89,20 +88,36 @@ void UDPClient::loadConfig()
     }
 }
 
-void UDPClient::listenServer()
+int UDPClient::listenServer()
 {
     if(!connectionStatus)   // jesli nie ma pozwolenia na polaczenie / poczatkowe
     {
         socket->bind(localAddress,clientPort);
-        if(socket->state() == socket->BoundState)   textWindow->append("Nasluchuje na LISTEN:"+QString::number(socket->localPort()));
-        else    textWindow->append("Nie nasluchuje");
+        if(socket->state() == socket->BoundState)
+        {
+            textWindow->append("Nasluchuje na LISTEN:"+QString::number(socket->localPort()));
+            return 1;
+        }
+        else
+        {
+            textWindow->append("Nie nasluchuje");
+            return 0;
+        }
     }
     else                    // uzyskano pozwolenie na polaczenie
     {
         socket->close();
         socket->bind(localAddress,comPort);
-        if(socket->state() == socket->BoundState)   textWindow->append("Nasluchuje na COM:"+QString::number(socket->localPort()));
-        else    textWindow->append("Nie nasluchuje na COM");
+        if(socket->state() == socket->BoundState)
+        {
+            textWindow->append("Nasluchuje na COM:"+QString::number(socket->localPort()));
+            return 0;
+        }
+        else
+        {
+            textWindow->append("Nie nasluchuje na COM");
+            return 2;
+        }
     }
 }
 
@@ -148,6 +163,7 @@ void UDPClient::broadcast(char string[])
 
 void UDPClient::connectToServer()
 {
+    listenServer();
     if(!connectionStatus)
     {
         if(serverAddress.isNull())
@@ -204,27 +220,11 @@ void UDPClient::readData()
     }
 }
 
-void UDPClient::setXAxis(QString value)
+void UDPClient::movePlatform(QString value)
 {
     if(connectionStatus)
     {
-        writeData(QString("X = "+value));
-    }
-}
-
-void UDPClient::setYAxis(QString value)
-{
-    if(connectionStatus)
-    {
-        writeData(QString("Y = "+value));
-    }
-}
-
-void UDPClient::setZAxis(QString value)
-{
-    if(connectionStatus)
-    {
-        writeData(QString("Z = "+value));
+        writeData(value);
     }
 }
 
