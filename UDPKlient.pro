@@ -14,10 +14,14 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    udpclient.cpp
+    udpclient.cpp \
+    adminwindow.cpp
 
 HEADERS  += mainwindow.h \
-    udpclient.h
+    udpclient.h \
+    adminwindow.h
 
-FORMS    += mainwindow.ui
+FORMS    += \
+    mainwindow.ui \
+    adminwindow.ui
 

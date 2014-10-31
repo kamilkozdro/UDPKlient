@@ -5,8 +5,8 @@ UDPClient::UDPClient(QObject *parent) :
 {
 }
 
-UDPClient::UDPClient(QTextBrowser *ptr, quint16 ListenPort, quint16 ComPort, quint16 ServerPort)
-    :listenPort(ListenPort),comPort(ComPort),serverPort(ServerPort)
+UDPClient::UDPClient(QTextBrowser *ptr, quint16 ClientPort, quint16 ComPort, quint16 ServerPort)
+    :clientPort(ClientPort),comPort(ComPort),serverPort(ServerPort)
 {
     logFile.setFileName("A:/log.txt");
     logFile.open(QIODevice::Append);
@@ -67,18 +67,18 @@ void UDPClient::loadConfig()
         buffer = confFile.readLine();
         buffer = confFile.readLine();
         buffer.chop(1);
-        serverPort = buffer.toUShort(0,16);
+        serverPort = buffer.toUInt();
         //qDebug() << hex << serverPort;
         buffer = confFile.readLine();
         buffer = confFile.readLine();
         buffer.chop(1);
-        comPort = buffer.toUShort(0,16);
+        comPort = buffer.toUInt();
         //qDebug() << hex << comPort;
         buffer = confFile.readLine();
         buffer = confFile.readLine();
         buffer.chop(1);
-        listenPort = buffer.toUShort(0,16);
-        //qDebug() << hex << listenPort;
+        clientPort = buffer.toUInt();
+        //qDebug() << hex << clientPort;
         buffer = confFile.readLine();
         buffer = confFile.readLine();
         buffer.chop(1);
@@ -93,7 +93,7 @@ void UDPClient::listenServer()
 {
     if(!connectionStatus)   // jesli nie ma pozwolenia na polaczenie / poczatkowe
     {
-        socket->bind(localAddress,listenPort);
+        socket->bind(localAddress,clientPort);
         if(socket->state() == socket->BoundState)   textWindow->append("Nasluchuje na LISTEN:"+QString::number(socket->localPort()));
         else    textWindow->append("Nie nasluchuje");
     }
@@ -144,14 +144,16 @@ void UDPClient::broadcast(char string[])
     socket->waitForBytesWritten();
 }
 
-    // PROCEDURES - SLOTS
+// PROCEDURES - SLOTS
 
 void UDPClient::connectToServer()
 {
     if(!connectionStatus)
     {
-        if(serverAddress.isNull())  broadcast("query");
-        else    writeData("query");
+        if(serverAddress.isNull())
+            broadcast("query");
+        else
+            writeData("query");
     }
 }
 
@@ -159,14 +161,14 @@ void UDPClient::disconnect()
 {
     if(connectionStatus)
     {
-       writeData("logout");
-       connectionStatus = false;
-       emit disconnected();
-       socket->close();
-       listenServer();
+        writeData("logout");
+        connectionStatus = false;
+        emit disconnected();
+        socket->close();
+        listenServer();
     }
 }
-
+// sposob na zapis tylko obrazu do pliku?
 void UDPClient::readData()
 {
     QByteArray datagram;
@@ -175,7 +177,7 @@ void UDPClient::readData()
         datagram.resize(socket->pendingDatagramSize());
         socket->readDatagram(datagram.data(),datagram.size(),&serverAddress);
         //textWindow->append(datagram);
-        logFile.write(datagram);
+        //logFile.write(datagram);
     }
 
     if(datagram == "Y")
@@ -185,7 +187,21 @@ void UDPClient::readData()
         textWindow->append("Prosba przyjeta");
         listenServer();
     }
-    else if(datagram == "N")    textWindow->append("Prosba odrzucona");
+    else if(datagram == "N")
+        textWindow->append("Prosba odrzucona");
+    else if( (datagram[0] == 'P') && (datagram[1] == '5'))
+    {
+        QFile image("image.pgm");
+        textWindow->append("Odebrano obraz");
+        if(!image.open(QIODevice::WriteOnly | QIODevice::Text))
+            textWindow->append("Nie utworzono pliku obrazu");
+        else
+        {
+            image.write(datagram);
+            image.waitForBytesWritten(3000);    // potrzebne?
+            image.close();
+        }
+    }
 }
 
 void UDPClient::setXAxis(QString value)

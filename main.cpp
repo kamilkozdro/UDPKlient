@@ -1,14 +1,11 @@
 #include "mainwindow.h"
 #include <QApplication>
-#include "QUdpSocket"
-#include <QHostAddress>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    mainWindow w;
+    QApplication app(argc, argv);
+    mainWindow window(argv[1]);
 
-    w.show();
-
-    return a.exec();
+    window.show();
+    return app.exec();
 }

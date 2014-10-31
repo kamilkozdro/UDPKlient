@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>mainWindow</string>
+   <string>Main Window</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QTextBrowser" name="comText">

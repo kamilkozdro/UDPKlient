@@ -20,8 +20,34 @@ mainWindow::mainWindow(QWidget *parent) :
     connect(ui->grabFrameButton,SIGNAL(clicked()),this,SLOT(clickedGrabFrameButton()));
 }
 
+mainWindow::mainWindow(char argv[]):
+    ui(new Ui::mainWindow)
+{
+    ui->setupUi(this);
+    udpClient = new UDPClient(ui->comText);
+    if(!strcmp(argv,"-admin"))
+        adminWin = new adminWindow(udpClient);
+
+    connect(ui->connectButton,SIGNAL(clicked()),this,SLOT(clickedConnectButton()));
+    connect(ui->disconnectButton,SIGNAL(clicked()),this,SLOT(clickedDisconnectButton()));
+    connect(udpClient,SIGNAL(connectionEstablished()),this,SLOT(enableDisconnectButton()));
+    connect(udpClient,SIGNAL(disconnected()),this,SLOT(enableConnectButton()));
+    connect(ui->xAxisButton,SIGNAL(clicked()),this,SLOT(clickedXAxisButton()));
+    connect(ui->yAxisButton,SIGNAL(clicked()),this,SLOT(clickedYAxisButton()));
+    connect(ui->zAxisButton,SIGNAL(clicked()),this,SLOT(clickedZAxisButton()));
+    connect(ui->lightButton,SIGNAL(clicked()),this,SLOT(clickedLightButton()));
+    connect(ui->grabFrameButton,SIGNAL(clicked()),this,SLOT(clickedGrabFrameButton()));
+
+    adminWin->show();
+}
+
 mainWindow::~mainWindow()
 {
+    if(adminWin != NULL)
+    {
+        delete adminWin;
+        adminWin = NULL;
+    }
     delete udpClient;
     udpClient = NULL;
     delete ui;

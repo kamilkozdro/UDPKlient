@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include "udpclient.h"
+#include "adminwindow.h"
+#include <string.h>
 
 namespace Ui {
 class mainWindow;
@@ -14,7 +16,11 @@ class mainWindow : public QMainWindow
 
 public:
     explicit mainWindow(QWidget *parent = 0);
+    mainWindow(char argv[]);
     ~mainWindow();
+
+    UDPClient *udpClient;
+    adminWindow* adminWin;
 
 private slots:
 
@@ -31,7 +37,6 @@ private slots:
 
 private:
     Ui::mainWindow *ui;
-    UDPClient *udpClient;
 
 };
 
